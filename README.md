@@ -1,30 +1,63 @@
-# MLP character recognition
+# OCR
 
 Trains a multi-layer perceptron (MLP) neural network to perform optical character recognition (OCR).
 
 The training set is automatically generated using a heavily modified version of the captcha-generator [node-captcha](http://npmjs.com/package/node-captcha). Support for the MNIST handwritten digit database has been added recently (see performance section).
 
-The network takes a one-dimensional binary array (default ```20 * 20 = 400```-bit) as input and outputs an 8-bit array, which can then be converted into a character code. Initial performance measurements show promising success rates.
+The network takes a one-dimensional binary array (default ```20 * 20 = 400```-bit) as input and outputs an 10-bit array of probabilities, which can be converted into a character code. Initial performance measurements show promising success rates.
 
-After training, the network is saved as a standalone module to ```./ocr.js```, which can then be used in your project with
+After training, the network is saved as a standalone module to ```./ocr.js```, which can then be used in your project like this (from `test.js`):
 
 ```javascript
-var ocr = require('./ocr.js');
-var output = ocr
-  .activate(input)
-  .map(function(bit) {
-    return bit > 0.5 ? 1 : 0;
-  });
-  
-// output is now binary array, converting to character is easy
-var character = String.fromCharCode(parseInt(output.join(''), 2));
+var predict = require('./ocr.js');
 
-// do stuff ...
+// a binary array that we want to predict
+var one = [
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
+
+// the prediction is an array of probabilities
+var prediction = predict(one);
+
+// the index with the maximum probability is the best guess
+console.log('prediction:', prediction.indexOf(Math.max.apply(null, prediction)));
+// will hopefully output 1 if trained with 0-9 :)
+```
+
+## Usage
+
+Clone this repository. The script is using [canvas](https://www.npmjs.com/package/canvas), so you'll need to install the **Cairo** rendering engine. On OS X, assuming you have [Homebrew](http://brew.sh) installed, this can be done with the following (copied from canvas README):
+
+```bash
+$ brew install pkg-config cairo jpeg giflib
+```
+
+Then install npm dependencies and test it:
+
+```bash
+$ npm install
+$ node main.js
+$ node test.js
 ```
 
 ## Performance
 
-All runs below were performed with an i5 MacBook Air 13" Mid 2012 with 4GB RAM.
+All runs below were performed with a MacBook Pro Retina 13" Early 2015 with 8GB RAM.
 
 ### [MNIST [0-9]](http://yann.lecun.com/exdb/mnist/)
 
@@ -41,15 +74,21 @@ To test with the MNIST dataset: click on the title above, download the 4 data fi
 }
 ```
 
+Then run
+
+```bash
+$ node mnist.js
+```
+
 * **Neurons**
   * ```400``` input
   * ```160``` hidden
-  * ```4``` output
+  * ```10``` output
 * **Learning rate:** ```0.03```
 * **Training set:** ```60000``` digits
 * **Testing set:** ```10000``` digits
-* **Training time:** ```36 min 22 s 50 ms```
-* **Success rate:** ```90.14%```
+* **Training time:** ```21 min 53 s 753 ms```
+* **Success rate:** ```95.16%```
 
 ### [A-Za-z0-9]
 
@@ -67,23 +106,24 @@ To test with the MNIST dataset: click on the title above, download the 4 data fi
   "image_size": 16,
   "threshold": 400,
   "network": {
-    "hidden": 40,
-    "learning_rate": 0.03
+    "hidden": 60,
+    "learning_rate": 0.1,
+    "output": 62
   }
 }
 ```
 
 * **Neurons**
   * ```256``` input
-  * ```40``` hidden
-  * ```8``` output
+  * ```60``` hidden
+  * ```62``` output
 * **Learning rate:** ```0.03```
 * **Training set**
   * **Size:** ```124000``` characters
   * **Sample:** ![abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789](https://raw.github.com/mateogianolio/mlp-character-recognition/master/examples/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.png)
 * **Testing set:** ```62000``` characters
-* **Training time:** ```4 min 8 s 2 ms```
-* **Success rate:** ```78.60322580645162%```
+* **Training time:** ```8 min 18 s 560 ms```
+* **Success rate:** ```93.58225806451614%```
 
 ### [a-z]
 
@@ -102,7 +142,8 @@ To test with the MNIST dataset: click on the title above, download the 4 data fi
   "threshold": 400,
   "network": {
     "hidden": 40,
-    "learning_rate": 0.1
+    "learning_rate": 0.1,
+    "output": 26
   }
 }
 ```
@@ -110,15 +151,15 @@ To test with the MNIST dataset: click on the title above, download the 4 data fi
 * **Neurons**
   * ```256``` input
   * ```40``` hidden
-  * ```8``` output
+  * ```26``` output
 * **Learning rate:** ```0.1```
 * **Training set**
   * **Size:** ```52000``` characters
   * **Sample:** ![abcdefghijklmnopqrstuvwxyz](https://raw.github.com/mateogianolio/mlp-character-recognition/master/examples/abcdefghijklmnopqrstuvwxyz.png)
 * **Testing set:** ```26000``` characters
-* **Training time:** ```2 min 10 s 752 ms```
-* **Success rate:** ```91.77692307692308%```
-    
+* **Training time:** ```1 min 55 s 414 ms```
+* **Success rate:** ```93.83846153846153%```
+
 ### [0-9]
 
 ```javascript
@@ -144,14 +185,14 @@ To test with the MNIST dataset: click on the title above, download the 4 data fi
 * **Neurons**
   * ```256``` input
   * ```40``` hidden
-  * ```8``` output
+  * ```10``` output
 * **Learning rate:** ```0.1```
 * **Training set**
   * **Size:** ```20000``` digits
   * **Sample:** ![0123456789](https://raw.github.com/mateogianolio/mlp-character-recognition/master/examples/0123456789.png)
 * **Testing set:** ```10000``` digits
-* **Training time:** ```1 min 6 s 620 ms```
-* **Success rate:** ```99.22%```
+* **Training time:** ```0 min 44 s 363 ms```
+* **Success rate:** ```99.59%```
 
 ## Configuration
 
@@ -161,20 +202,21 @@ Tweak the network for your needs by editing the ```config.json``` file located i
 // config.json
 {
   "mnist": false,
-  "text": "abcdefghijklmnopqrstuvwxyz",
+  "text": "0123456789",
   "fonts": [
     "sans-serif",
     "serif"
   ],
   "training_set": 2000,
-  "testing_set": 500,
-  "image_size": 20,
+  "testing_set": 1000,
+  "image_size": 16,
   "threshold": 400,
   "network": {
     "hidden": 40,
     "learning_rate": 0.1
   }
 }
+
 ```
 
 * **```mnist```**
@@ -196,18 +238,3 @@ Tweak the network for your needs by editing the ```config.json``` file located i
     * The size (number of neurons) of the hidden layer of the network.
   * **```learning_rate```**
     * The learning rate of the network.
-
-## Usage
-
-Clone this repository. The script is using [canvas](https://www.npmjs.com/package/canvas), so you'll need to install the **Cairo** rendering engine. On OSX, this can be done with the following one-liner (copied from canvas README):
-
-```bash
-$ wget https://raw.githubusercontent.com/LearnBoost/node-canvas/master/install -O - | sh
-```
-
-Then install npm dependencies and test it:
-
-```bash
-$ npm install
-$ node main.js
-```
